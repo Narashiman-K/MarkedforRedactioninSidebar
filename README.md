@@ -49,6 +49,12 @@ Place your PDF file in the `public` directory (e.g., `public/document.pdf`)
 ```bash
 npm run dev
 ```
+### Demo
+
+
+https://github.com/user-attachments/assets/fb4b4ece-86bc-4e60-a14e-3183b94f9fd6
+
+
 
 The application will be available at `http://localhost:5173`
 
