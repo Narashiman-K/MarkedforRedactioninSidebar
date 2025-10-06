@@ -124,51 +124,7 @@ export default function PdfViewerComponent(props) {
     await instance.setSelectedAnnotation(redaction.id);
   };
 
-  // function to accept a redaction
-  const acceptRedaction = async (redaction) => {
-    const instance = instanceRef.current;
-    if (!instance) return;
-
-    try {
-      // get all redaction annotations
-      const allRedactions = [];
-      const pageCount = await instance.totalPageCount;
-
-      for (let i = 0; i < pageCount; i++) {
-        const annotations = await instance.getAnnotations(i);
-        const pageRedactions = annotations.filter(
-          (a) =>
-            a instanceof window.NutrientViewer.Annotations.RedactionAnnotation,
-        );
-        allRedactions.push(...pageRedactions);
-      }
-
-      // filter out the current redaction
-      const otherRedactions = allRedactions.filter(
-        (r) => r.id !== redaction.id,
-      );
-
-      // temporarily remove other redactions
-      if (otherRedactions.length > 0) {
-        await instance.delete(otherRedactions);
-      }
-
-      // apply the single redaction
-      await instance.applyRedactions();
-
-      // restore other redactions
-      if (otherRedactions.length > 0) {
-        await instance.create(otherRedactions);
-      }
-
-      // update sidebar
-      await updateSidebarContent();
-    } catch (error) {
-      console.error("Error accepting redaction:", error);
-    }
-  };
-
-  // function to reject a redaction
+  // function to reject/remove a redaction
   const rejectRedaction = async (redaction) => {
     const instance = instanceRef.current;
     if (!instance) return;
@@ -207,20 +163,63 @@ export default function PdfViewerComponent(props) {
     header.style.borderBottom = "1px solid #e0e0e0";
     header.style.flexShrink = "0";
 
+    const titleRow = document.createElement("div");
+    titleRow.style.display = "flex";
+    titleRow.style.justifyContent = "space-between";
+    titleRow.style.alignItems = "center";
+    titleRow.style.marginBottom = "8px";
+
     const title = document.createElement("h3");
     title.textContent = "Marked for Redaction";
     title.style.margin = "0";
     title.style.fontSize = "16px";
     title.style.fontWeight = "600";
     title.style.color = "#333";
-    header.appendChild(title);
+    titleRow.appendChild(title);
 
     const count = document.createElement("div");
     count.textContent = `${redactions.length} item${redactions.length !== 1 ? "s" : ""}`;
     count.style.fontSize = "12px";
     count.style.color = "#666";
-    count.style.marginTop = "4px";
-    header.appendChild(count);
+    titleRow.appendChild(count);
+
+    header.appendChild(titleRow);
+
+    // add "Apply All Redactions" button
+    if (redactions.length > 0) {
+      const applyAllBtn = document.createElement("button");
+      applyAllBtn.textContent = "Apply All Redactions";
+      applyAllBtn.style.width = "100%";
+      applyAllBtn.style.padding = "8px 12px";
+      applyAllBtn.style.fontSize = "13px";
+      applyAllBtn.style.fontWeight = "500";
+      applyAllBtn.style.backgroundColor = "#28a745";
+      applyAllBtn.style.color = "#fff";
+      applyAllBtn.style.border = "none";
+      applyAllBtn.style.borderRadius = "4px";
+      applyAllBtn.style.cursor = "pointer";
+      applyAllBtn.style.transition = "background-color 0.2s";
+      applyAllBtn.style.marginTop = "12px";
+
+      applyAllBtn.addEventListener("mouseenter", () => {
+        applyAllBtn.style.backgroundColor = "#218838";
+      });
+
+      applyAllBtn.addEventListener("mouseleave", () => {
+        applyAllBtn.style.backgroundColor = "#28a745";
+      });
+
+      applyAllBtn.addEventListener("click", async () => {
+        try {
+          await instance.applyRedactions();
+          await updateSidebarContent();
+        } catch (error) {
+          console.error("Error applying all redactions:", error);
+        }
+      });
+
+      header.appendChild(applyAllBtn);
+    }
 
     container.appendChild(header);
 
@@ -299,68 +298,40 @@ export default function PdfViewerComponent(props) {
 
         item.appendChild(contentDiv);
 
-        // add action buttons
+        // add remove button
         const buttonContainer = document.createElement("div");
         buttonContainer.style.display = "flex";
-        buttonContainer.style.gap = "8px";
         buttonContainer.style.marginTop = "8px";
         buttonContainer.style.paddingTop = "8px";
         buttonContainer.style.borderTop = "1px solid #e0e0e0";
 
-        // accept button
-        const acceptBtn = document.createElement("button");
-        acceptBtn.textContent = "Accept";
-        acceptBtn.style.flex = "1";
-        acceptBtn.style.padding = "4px 8px";
-        acceptBtn.style.fontSize = "12px";
-        acceptBtn.style.backgroundColor = "#28a745";
-        acceptBtn.style.color = "#fff";
-        acceptBtn.style.border = "none";
-        acceptBtn.style.borderRadius = "3px";
-        acceptBtn.style.cursor = "pointer";
-        acceptBtn.style.transition = "background-color 0.2s";
+        // remove button (renamed from reject)
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+        removeBtn.style.width = "100%";
+        removeBtn.style.padding = "4px 8px";
+        removeBtn.style.fontSize = "12px";
+        removeBtn.style.backgroundColor = "#dc3545";
+        removeBtn.style.color = "#fff";
+        removeBtn.style.border = "none";
+        removeBtn.style.borderRadius = "3px";
+        removeBtn.style.cursor = "pointer";
+        removeBtn.style.transition = "background-color 0.2s";
 
-        acceptBtn.addEventListener("mouseenter", () => {
-          acceptBtn.style.backgroundColor = "#218838";
+        removeBtn.addEventListener("mouseenter", () => {
+          removeBtn.style.backgroundColor = "#c82333";
         });
 
-        acceptBtn.addEventListener("mouseleave", () => {
-          acceptBtn.style.backgroundColor = "#28a745";
+        removeBtn.addEventListener("mouseleave", () => {
+          removeBtn.style.backgroundColor = "#dc3545";
         });
 
-        acceptBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          acceptRedaction(redaction);
-        });
-
-        // reject button
-        const rejectBtn = document.createElement("button");
-        rejectBtn.textContent = "Reject";
-        rejectBtn.style.flex = "1";
-        rejectBtn.style.padding = "4px 8px";
-        rejectBtn.style.fontSize = "12px";
-        rejectBtn.style.backgroundColor = "#dc3545";
-        rejectBtn.style.color = "#fff";
-        rejectBtn.style.border = "none";
-        rejectBtn.style.borderRadius = "3px";
-        rejectBtn.style.cursor = "pointer";
-        rejectBtn.style.transition = "background-color 0.2s";
-
-        rejectBtn.addEventListener("mouseenter", () => {
-          rejectBtn.style.backgroundColor = "#c82333";
-        });
-
-        rejectBtn.addEventListener("mouseleave", () => {
-          rejectBtn.style.backgroundColor = "#dc3545";
-        });
-
-        rejectBtn.addEventListener("click", (e) => {
+        removeBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           rejectRedaction(redaction);
         });
 
-        buttonContainer.appendChild(acceptBtn);
-        buttonContainer.appendChild(rejectBtn);
+        buttonContainer.appendChild(removeBtn);
         item.appendChild(buttonContainer);
 
         list.appendChild(item);
@@ -384,7 +355,7 @@ export default function PdfViewerComponent(props) {
           let currentInstance = null;
 
           instance = await NutrientViewer.load({
-            //licenseKey: import.meta.env.VITE_lkey,
+            licenseKey: import.meta.env.VITE_lkey,
             container,
             document: props.document,
             enableAutomaticLinkExtraction: true,
@@ -395,54 +366,12 @@ export default function PdfViewerComponent(props) {
                   window.NutrientViewer.Annotations.RedactionAnnotation &&
                 currentInstance
               ) {
-                // helper function to get all redaction annotations
-                const getAllRedactionAnnotations = async () => {
-                  let annotationsList = window.NutrientViewer.Immutable.List();
-                  const pageCount = await currentInstance.totalPageCount;
-
-                  for (let i = 0; i < pageCount; i++) {
-                    const anns = (
-                      await currentInstance.getAnnotations(i)
-                    ).filter(
-                      (a) =>
-                        a instanceof
-                        window.NutrientViewer.Annotations.RedactionAnnotation,
-                    );
-                    annotationsList = annotationsList.concat(anns);
-                  }
-                  return annotationsList;
-                };
-
                 return [
                   {
                     type: "custom",
-                    title: "Accept",
-                    id: "tooltip-accept-annotation",
-                    className: "tooltip-item-accept",
-                    onPress: async () => {
-                      const allRedactionAnnotations = (
-                        await getAllRedactionAnnotations()
-                      ).filter((a) => a.id !== annotation.id);
-
-                      if (allRedactionAnnotations.size > 0) {
-                        await currentInstance.delete(allRedactionAnnotations);
-                      }
-                      await currentInstance.applyRedactions();
-                      if (allRedactionAnnotations.size > 0) {
-                        await currentInstance.create(allRedactionAnnotations);
-                      }
-
-                      // update sidebar
-                      setTimeout(() => {
-                        updateSidebarContent();
-                      }, 100);
-                    },
-                  },
-                  {
-                    type: "custom",
-                    title: "Reject",
-                    id: "tooltip-reject-annotation",
-                    className: "tooltip-item-reject",
+                    title: "Remove",
+                    id: "tooltip-remove-annotation",
+                    className: "tooltip-item-remove",
                     onPress: async () => {
                       await currentInstance.delete(annotation);
 
